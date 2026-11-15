@@ -333,6 +333,26 @@ describe('emisión', () => {
     expect(otra.status).toBe(409)
     expect(otra.cuerpo.error.code).toBe('estado_invalido')
   })
+
+  it('una clave con sólo dte:invalidate invalida; sin ese permiso responde 403', async () => {
+    const { cliente } = await nuevaOrganizacion({ emisor: true })
+    const { cuerpo: doc } = await cliente.json('POST', '/api/v1/dte', FACTURA)
+    const ruta = `/api/v1/dte/${doc.codigoGeneracion}/invalidar`
+    const cuerpo = { tipoAnulacion: 2, motivoAnulacion: 'Operación rescindida' }
+
+    const sinPermiso = await nuevaClave(cliente, ['dte:read', 'dte:emit'])
+    const negada = await sinPermiso.cliente.json('POST', ruta, cuerpo)
+    expect(negada.status).toBe(403)
+    expect(negada.cuerpo.error.details.permiso).toBe('dte:invalidate')
+
+    const soloInvalidar = await nuevaClave(cliente, ['dte:invalidate'])
+    const r = await soloInvalidar.cliente.json('POST', ruta, cuerpo)
+    expect(r.status).toBe(200)
+    expect(r.cuerpo.estado).toBe('invalidado')
+    // Invalidar no da lectura: la consulta sigue pidiendo dte:read.
+    const lectura = await soloInvalidar.cliente.json('GET', `/api/v1/dte/${doc.codigoGeneracion}`)
+    expect(lectura.status).toBe(403)
+  })
 })
 
 describe('aislamiento entre organizaciones', () => {
