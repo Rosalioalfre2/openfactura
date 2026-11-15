@@ -89,6 +89,46 @@ describe('emisión contra el MH simulado', () => {
     expect(mock.recibidos.size).toBe(1)
   })
 
+  it('política de reintentos: si el reenvío choca con el documento ya sellado, devuelve el sello en vez de un rechazo', async () => {
+    nuevoEntorno()
+    // El MH sella el primer envío pero la respuesta se pierde, y la consulta posterior también falla una vez.
+    mock.simularCaida(1, { procesar: true })
+    let consultasCaidas = 1
+    const inestable = new ClienteMH({
+      ambiente: '00', usuario: NIT, password: PASSWORD_API, timeoutMs: 500,
+      fetch: (async (entrada: RequestInfo | URL, init?: RequestInit) => {
+        if (String(entrada).endsWith('/consultadte') && consultasCaidas-- > 0) throw new TypeError('fetch failed (consulta caída)')
+        return mock.fetch(entrada, init)
+      }) as typeof fetch
+    })
+    const dte = factura(1)
+    const { firma } = await firmarSinTransmitir(dte, firmante)
+    const respuesta = await transmitirDte(inestable, dte, firma)
+    expect(respuesta.estado).toBe('PROCESADO')
+    expect(respuesta.selloRecibido).toBe(mock.recibidos.get(dte.identificacion.codigoGeneracion)!.sello)
+    expect(mock.recibidos.size).toBe(1)
+  })
+
+  it('un rechazo por duplicado que la consulta no confirma como sellado sigue siendo un rechazo', async () => {
+    nuevoEntorno()
+    // Número de control repetido con otro código de generación: el MH no tiene sello para este documento.
+    await emitirDte(cliente, factura(7), firmante)
+    const error = await emitirDte(cliente, factura(7), firmante).catch(e => e)
+    expect(error).toBeInstanceOf(DteRechazadoError)
+    expect(error.respuesta.descripcionMsg).toMatch(/numeroControl.*YA EXISTE/)
+    // El MH dice que el código ya existe pero la consulta no devuelve sello: no se inventa el éxito.
+    const dte = factura(8)
+    const { firma } = await firmarSinTransmitir(dte, firmante)
+    const sinSello = new ClienteMH({
+      ambiente: '00', usuario: NIT, password: PASSWORD_API, timeoutMs: 500,
+      fetch: (async (entrada: RequestInfo | URL, init?: RequestInit) => {
+        if (String(entrada).endsWith('/recepciondte')) return Response.json({ estado: 'RECHAZADO', selloRecibido: null, codigoMsg: '004', descripcionMsg: '[identificacion.codigoGeneracion] YA EXISTE UN REGISTRO CON ESE VALOR', observaciones: [] }, { status: 400 })
+        return mock.fetch(entrada, init)
+      }) as typeof fetch
+    })
+    await expect(transmitirDte(sinSello, dte, firma)).rejects.toBeInstanceOf(DteRechazadoError)
+  })
+
   it('tras 3 intentos sin respuesta pide operar en contingencia', async () => {
     nuevoEntorno()
     mock.simularCaida(3)
