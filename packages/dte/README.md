@@ -47,7 +47,7 @@ Los ejemplos numéricos del Manual Funcional v2 están reproducidos en `test/bui
 - **No se ha probado contra el ambiente de pruebas real de Hacienda**: hacen falta credenciales de un contribuyente. El MH simulado valida firma y estructura, no todas las reglas fiscales. Usa `examples/emitir-pruebas.ts` con tus credenciales.
 - El Manual Técnico v2 no documenta un endpoint propio para los eventos de Retorno (18) y Operaciones Especiales (17); el SDK los envía por `recepciondte`. Confírmalo en pruebas.
 - Operación a crédito: la Normativa (Anexo IV, campos 160–161) pide código de forma de pago `null` y monto 0; el Manual Funcional muestra un ejemplo con monto. El SDK sigue la Normativa por defecto; envía `pagos` explícito para usar la otra forma.
-- `limiteInvalidacion` cuenta días hábiles sin asuetos salvo que se los pases.
+- `limiteInvalidacion` cuenta días hábiles sin asuetos salvo que se los pases, y aplica los 3 meses a toda FE y FEXE salvo que le pases la actividad económica del emisor (cuarto argumento): con 21001, 21008, 46482, 46484, 46491 o 47721 el plazo es de 2 años (Normativa 2.0, regla 13.1, Cuadro 6).
 - Los catálogos no relacionan distrito con municipio (el catálogo oficial no lo publica); se valida distrito y municipio contra el departamento.
 
 ## Desarrollo

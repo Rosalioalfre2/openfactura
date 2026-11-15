@@ -17,6 +17,9 @@ La invalidación es **irreversible** y tiene efecto fiscal. Requiere el permiso 
    `details.codigoGeneracion`: invalida primero ese retorno.
 3. Revisa el plazo:
    - Factura (01), Exportación (11) y Sujeto Excluido (14): **3 meses** desde el sello.
+   - Factura (01) y Exportación (11) de emisores con actividad económica 21001, 21008, 46482, 46484,
+     46491 o 47721 (medicamentos y especialidades farmacéuticas perecederos): **2 años** desde el
+     sello.
    - Los demás (Crédito Fiscal 03, notas 05/06, etc.): hasta el **10.º día hábil del mes siguiente** a
      la emisión. Esto incluye Liquidación (08), Doc. Contable de Liquidación (09) y Donación (15).
    - Fuera de plazo el MH la rechaza (`422 invalidacion_rechazada`). Para un CCF vencido, lo normal es

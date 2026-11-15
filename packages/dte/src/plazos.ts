@@ -14,15 +14,33 @@ const partesSV = (fecha: Date) => {
 const TRES_MESES = new Set(['01', '11', '14'])
 
 /**
+ * Actividades económicas del emisor (medicamentos y especialidades farmacéuticas perecederos) cuyas
+ * FE y FEXE tienen 2 años para invalidarse (Normativa 2.0, regla 13.1 (Cuadro 6); Anexo V, campo 9,
+ * regla 7) y para recibir un retorno (Manual Funcional, X).
+ */
+const ACTIVIDADES_DOS_ANIOS = new Set(['21001', '21008', '46482', '46484', '46491', '47721'])
+
+/**
  * Fecha límite para transmitir el evento de invalidación (Manual Funcional, VII).
+ * FE, FEXE y FSEE: 3 meses desde el sello; 2 años para las FE y FEXE cuando `codActividad` (la
+ * actividad económica del emisor) es 21001, 21008, 46482, 46484, 46491 o 47721
+ * (Normativa 2.0, regla 13.1 (Cuadro 6); Anexo V, campo 9, regla 7). Sin `codActividad` se aplican
+ * los 3 meses. El resto: 10.º día hábil del mes siguiente.
  * Los días hábiles excluyen sábados, domingos y los `feriados` indicados
  * (AAAA-MM-DD); pasa los asuetos oficiales del año para un resultado exacto.
  */
-export function limiteInvalidacion(tipoDte: string, fechaSello: Date, feriados: string[] = []): Date {
+export function limiteInvalidacion(
+  tipoDte: string,
+  fechaSello: Date,
+  feriados: string[] = [],
+  codActividad?: string | null
+): Date {
   const { anio, mes, dia } = partesSV(fechaSello)
   if (TRES_MESES.has(tipoDte)) {
-    const ultimoDia = new Date(Date.UTC(anio, mes + 4, 0)).getUTCDate()
-    return finDelDiaSV(anio, mes + 3, Math.min(dia, ultimoDia))
+    const largo = tipoDte !== '14' && !!codActividad && ACTIVIDADES_DOS_ANIOS.has(codActividad)
+    const destino = mes + (largo ? 24 : 3)
+    const ultimoDia = new Date(Date.UTC(anio, destino + 1, 0)).getUTCDate()
+    return finDelDiaSV(anio, destino, Math.min(dia, ultimoDia))
   }
   const asuetos = new Set(feriados)
   let habiles = 0
@@ -40,9 +58,6 @@ export const limiteEventoContingencia = (finContingencia: Date) => new Date(finC
 /** 72 h desde el sello del evento de contingencia para transmitir los DTE informados. */
 export const limiteLoteContingencia = (selloEvento: Date) => new Date(selloEvento.getTime() + 72 * MS_HORA)
 
-/** Actividades cuyas FE y FEXE admiten retorno hasta 2 años después (Manual Funcional, X). */
-const RETORNO_DOS_ANIOS = new Set(['21001', '21008', '46482', '46484', '46491', '47721'])
-
 /**
  * Última fecha del evento para aplicar un Evento de Retorno a una FE, FEXE o FSEE:
  * 3 meses desde su fecha de generación (AAAA-MM-DD), o 2 años para las FE y FEXE de las
@@ -50,7 +65,7 @@ const RETORNO_DOS_ANIOS = new Set(['21001', '21008', '46482', '46484', '46491', 
  */
 export function limiteRetorno(tipoDte: string, fecEmi: string, codActividad?: string | null): Date {
   const [anio, mes, dia] = fecEmi.split('-').map(Number) as [number, number, number]
-  const largo = tipoDte !== '14' && !!codActividad && RETORNO_DOS_ANIOS.has(codActividad)
+  const largo = tipoDte !== '14' && !!codActividad && ACTIVIDADES_DOS_ANIOS.has(codActividad)
   const destino = mes - 1 + (largo ? 24 : 3)
   const ultimoDia = new Date(Date.UTC(anio, destino + 1, 0)).getUTCDate()
   return finDelDiaSV(anio, destino, Math.min(dia, ultimoDia))

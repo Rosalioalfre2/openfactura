@@ -201,4 +201,18 @@ describe('utilidades', () => {
     expect(sv(limiteInvalidacion('03', new Date('2026-04-25T06:30:00Z'), ['2026-05-01']))).toBe('2026-05-15T23:59:59')
     expect(sv(limiteInvalidacion('01', new Date('2025-11-30T18:00:00Z')))).toBe('2026-02-28T23:59:59')
   })
+  it('plazo de invalidación de medicamentos: 2 años (Normativa 2.0, regla 13.1, Cuadro 6)', () => {
+    const sv = (d: Date) => new Date(d.getTime() - 6 * 3600_000).toISOString().slice(0, 19)
+    const sello = new Date('2025-11-11T13:30:00Z')
+    expect(sv(limiteInvalidacion('01', sello, [], '47721'))).toBe('2027-11-11T23:59:59')
+    expect(sv(limiteInvalidacion('11', sello, [], '21001'))).toBe('2027-11-11T23:59:59')
+    // La FSEE no entra en la regla de 2 años, ni las actividades fuera de la lista.
+    expect(sv(limiteInvalidacion('14', sello, [], '47721'))).toBe('2026-02-11T23:59:59')
+    expect(sv(limiteInvalidacion('01', sello, [], '62010'))).toBe('2026-02-11T23:59:59')
+    expect(sv(limiteInvalidacion('01', sello, [], null))).toBe('2026-02-11T23:59:59')
+    // El CCF conserva el 10.º día hábil del mes siguiente.
+    expect(sv(limiteInvalidacion('03', new Date('2026-04-25T06:30:00Z'), ['2026-05-01'], '47721'))).toBe('2026-05-15T23:59:59')
+    // 29 de febrero: se ajusta al último día del mes de destino.
+    expect(sv(limiteInvalidacion('01', new Date('2024-02-29T18:00:00Z'), [], '47721'))).toBe('2026-02-28T23:59:59')
+  })
 })
