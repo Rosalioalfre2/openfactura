@@ -169,6 +169,25 @@ describe('emisión', () => {
     expect(correlativos).toEqual(Array.from({ length: 12 }, (_, i) => i + 2))
   })
 
+  it('el correlativo reinicia cada año sin chocar con el número de control del año anterior', async () => {
+    // 31 de diciembre a las 23:00 de El Salvador (UTC-6).
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.UTC(2031, 0, 1, 5) })
+    try {
+      const { cliente } = await nuevaOrganizacion({ emisor: true })
+      const anterior = await cliente.json('POST', '/api/v1/dte', FACTURA)
+      expect(anterior.cuerpo.numeroControl).toBe('DTE-01-M001P001-000000000000001')
+      vi.setSystemTime(Date.UTC(2031, 0, 1, 7))
+      const nuevo = await cliente.json('POST', '/api/v1/dte', FACTURA)
+      expect(nuevo.status).toBe(201)
+      expect(nuevo.cuerpo.numeroControl).toBe('DTE-01-M001P001-000000000000001')
+      expect(nuevo.cuerpo.codigoGeneracion).not.toBe(anterior.cuerpo.codigoGeneracion)
+      const segundo = await cliente.json('POST', '/api/v1/dte', FACTURA)
+      expect(segundo.cuerpo.numeroControl).toBe('DTE-01-M001P001-000000000000002')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('cada tipo de DTE lleva su propia serie', async () => {
     const { cliente } = await nuevaOrganizacion({ emisor: true })
     const c = await cliente.json('POST', '/api/v1/clientes', {
